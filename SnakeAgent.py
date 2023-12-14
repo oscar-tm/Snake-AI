@@ -1,18 +1,29 @@
+import torch
+
 class DQNAgent:
     def __init__(self) -> None:
         pass
 
-    def forward():
+    def forward(self, x):
         pass
 
-    def move():
+    def move(self):
         pass
 
-    def addToMem():
+    def convertInput(self, x, gameSize):
+        gM = []
+        for i in range(gameSize+2):
+            tmp = []
+            for j in range(gameSize+2):
+                tmp.append(x[i, j])
+            gM.append(tmp)
+        return torch.stack([torch.Tensor(a) for a in zip(*gM)])
+
+    def addToMem(self):
         pass
 
-    def sampleMem():
+    def sampleMem(self):
         pass
 
-    def optimizeModel():
+    def optimizeModel(self):
         pass
