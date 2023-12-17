@@ -16,9 +16,11 @@ from Snake import SnakeGame
 testSnake = SnakeGame(13, 3)
 testSnake.CreateBoard()
 
-while not testSnake.GameOver():
-    testSnake.DisplayGame()
-    testSnake.DirectMove(2)
-    sleep(1)
+test = testSnake.SendGame()
 
-testSnake.DisplayEndStats()
+from SnakeDQNAgent import *
+agent = DQNAgent()
+
+print(agent.convertInput(test, 13).size())
+print(agent.forward(agent.convertInput(test, 13)))
+print(agent.move(test))
