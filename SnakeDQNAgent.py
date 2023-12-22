@@ -1,10 +1,11 @@
 import torch
 from torch import nn
-from collections import deque
+from collections import deque, namedtuple
 
 import random
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+transitionMem = namedtuple("transitionMem", ["pState", "action", "nState", "reward"])
 
 
 class DQNAgent:
@@ -78,11 +79,15 @@ class DQNAgent:
     def optimizeModel(self):
         pass
 
-    def addToMem(self):
+    def addToMem(self, transition):
         """
         Adds a transition to the replay memory.
         """
-        pass
+        self.cache.append(transitionMem(*transition))
 
-    def sampleMem(self):
-        pass
+    def sampleMem(self, bathSize=64):
+        """
+        Samples the memory
+        Returns: A sample of the size batchsize
+        """
+        return random.sample(self.cache, bathSize)
