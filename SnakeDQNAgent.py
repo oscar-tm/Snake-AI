@@ -9,8 +9,15 @@ transitionMem = namedtuple("transitionMem", ["pState", "action", "nState", "rewa
 
 
 class DQNAgent:
-    def __init__(self, memSize=10000) -> None:
+    def __init__(
+        self, memSize=10000, bathSize=64, gamma=0.9, lossF=nn.SmoothL1Loss(), lr=0.9
+    ) -> None:
+        self.memSize = memSize
         self.cache = deque(maxlen=memSize)
+        self.batchSize = bathSize
+        self.gamma = gamma
+        self.lossF = lossF
+
         self.onlineNet = nn.Sequential(
             nn.LazyConv2d(1, 3, device=device),
             nn.LeakyReLU(),
@@ -37,9 +44,13 @@ class DQNAgent:
         ).to(device)
         self.targetNet.load_state_dict(self.onlineNet.state_dict())
 
+        self.optim = torch.optim.AdamW(self.onlineNet.parameters(), lr=lr)
+
     def forward(self, x, online=True):
         """
-        Sends an input x to the correct net. And return the net output
+        Sends an input x to the correct net and returns the output.
+        Input: An input tensor x to be sent to a net. A bool online to select which net to use.
+        Returns: Returns the tensor from the selected neural net.
         """
         if online:
             return self.onlineNet(x)
@@ -48,7 +59,9 @@ class DQNAgent:
 
     def move(self, x):
         """
-        Does a move with the episolon-greedy approach.
+        Does a move with the epsilon-greedy approach.
+        Input: Input x the current state of the game.
+        Returns: A epsilon-greedy move.
         """
         if random.random() > 0.05:
             with torch.no_grad():
@@ -77,7 +90,33 @@ class DQNAgent:
         )  # Need to transpose the game matrix here for now, will be fixed later. Not a high priority
 
     def optimizeModel(self):
-        pass
+        """
+        Optimizing the model using the data stored in the memory
+        """
+        if (
+            len(self.cache) < self.memSize * 0
+        ):  # Only start to optimize model when memory is halfway full
+            return
+
+        sample = transitionMem(*zip(*self.sampleMem(2)))
+
+        pSates = torch.stack(sample.pState)
+        actions = torch.stack(sample.action)
+        nStates = torch.stack(sample.nState)
+        rewards = torch.stack(sample.reward)
+
+        Q = self.forward(pSates).gather(1, actions)
+
+        with torch.no_grad():
+            V = self.forward(nStates, False).max(1).values
+
+        V = (V.unsqueeze(1) * self.gamma) + rewards
+
+        loss = self.lossF(Q, V)
+
+        self.optim.zero_grad()
+        loss.backward()
+        self.optim.step()
 
     def addToMem(self, transition):
         """
