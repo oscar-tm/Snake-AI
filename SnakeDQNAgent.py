@@ -65,10 +65,10 @@ class DQNAgent:
         """
         if random.random() > 0.05:
             with torch.no_grad():
-                return torch.argmax(self.forward(self.convertInput(x)))
+                return torch.argmax(self.forward(x))
 
         else:
-            return random.randint(0, 3)
+            return torch.Tensor([random.randint(0, 3)]).to(torch.long)
 
     def convertInput(self, x, gameSize=13):
         """ "
@@ -94,11 +94,11 @@ class DQNAgent:
         Optimizing the model using the data stored in the memory
         """
         if (
-            len(self.cache) < self.memSize * 0
+            len(self.cache) < self.memSize * 0.5
         ):  # Only start to optimize model when memory is halfway full
             return
 
-        sample = transitionMem(*zip(*self.sampleMem(2)))
+        sample = transitionMem(*zip(*self.sampleMem()))
 
         pSates = torch.stack(sample.pState)
         actions = torch.stack(sample.action)
@@ -117,6 +117,18 @@ class DQNAgent:
         self.optim.zero_grad()
         loss.backward()
         self.optim.step()
+
+    def updateTarget(self):
+        """
+        Updates the target net to the current onlineNet.
+        """
+        self.targetNet.load_state_dict(self.onlineNet.state_dict())
+
+    def memLen(self):
+        """
+        Returns the current size of the memory
+        """
+        return len(self.cache)
 
     def addToMem(self, transition):
         """
