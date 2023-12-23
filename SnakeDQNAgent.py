@@ -1,6 +1,7 @@
 import torch
 from torch import nn
 from collections import deque, namedtuple
+import math
 
 import random
 
@@ -17,10 +18,9 @@ class DQNAgent:
         self.batchSize = bathSize
         self.gamma = gamma
         self.lossF = lossF
+        self.nActions = 0
 
         self.onlineNet = nn.Sequential(
-            nn.LazyConv2d(1, 3, device=device),
-            nn.LeakyReLU(),
             nn.LazyConv2d(1, 3, device=device),
             nn.LeakyReLU(),
             nn.Flatten(1),
@@ -31,8 +31,6 @@ class DQNAgent:
             nn.LazyLinear(4, device=device),
         ).to(device)
         self.targetNet = nn.Sequential(
-            nn.LazyConv2d(1, 3, device=device),
-            nn.LeakyReLU(),
             nn.LazyConv2d(1, 3, device=device),
             nn.LeakyReLU(),
             nn.Flatten(1),
@@ -59,11 +57,12 @@ class DQNAgent:
 
     def move(self, x):
         """
-        Does a move with the epsilon-greedy approach.
+        Does a move with the epsilon-greedy approach. Does a exponential decay of epsilon.
         Input: Input x the current state of the game.
         Returns: A epsilon-greedy move.
         """
-        if random.random() > 0.05:
+        self.nActions += 1
+        if random.random() > 0.05 + 0.9 * math.exp(-1 * self.nActions / 20000):
             with torch.no_grad():
                 return torch.argmax(self.forward(x))
 
@@ -94,12 +93,11 @@ class DQNAgent:
         Optimizing the model using the data stored in the memory
         """
         if (
-            len(self.cache) < self.memSize * 0.5
+            len(self.cache) < 64  # self.memSize * 0.5
         ):  # Only start to optimize model when memory is halfway full
             return
 
         sample = transitionMem(*zip(*self.sampleMem()))
-
         pSates = torch.stack(sample.pState)
         actions = torch.stack(sample.action)
         nStates = torch.stack(sample.nState)
