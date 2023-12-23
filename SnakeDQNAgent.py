@@ -11,7 +11,7 @@ transitionMem = namedtuple("transitionMem", ["pState", "action", "nState", "rewa
 
 class DQNAgent:
     def __init__(
-        self, memSize=10000, bathSize=64, gamma=0.9, lossF=nn.SmoothL1Loss(), lr=0.9
+        self, memSize=10000, bathSize=64, gamma=0.9, lossF=nn.SmoothL1Loss(), lr=1e-4
     ) -> None:
         self.memSize = memSize
         self.cache = deque(maxlen=memSize)
