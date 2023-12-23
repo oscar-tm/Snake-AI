@@ -13,46 +13,72 @@ load("coreclr")
 import clr
 
 clr.AddReference("Snake")
-
 from Snake import SnakeGame  # type: ignore import is correct, telling pylance to ignore error
 
-testSnake = SnakeGame(13, 3)
-testSnake.CreateBoard()
-
-test = testSnake.SendGame()
+snake = SnakeGame(13, 3)
 
 from SnakeDQNAgent import *
 
 agent = DQNAgent()
 
-nEpisodes = 50
+nEpisodes = 500
 scores = []
 nActions = []
+totRew = []
+tRew = 0
 
+t = 1
 for i in range(nEpisodes):
     print("Current episode:", i)
-    pState = agent.convertInput(testSnake.SendGame())
-    pScore = testSnake.GetScore()
-    t = 1
+    snake.ResetGame()  # need reset function (despair)
+    pState = agent.convertInput(snake.SendGame())
+    pScore = snake.GetScore()
     while True:
         action = agent.move(pState)
-        testSnake.DirectMove(action.item())
-        nState = agent.convertInput(testSnake.SendGame())
-        gameOver = testSnake.GameOver()
-        cScore = testSnake.GetScore()
+        snake.DirectMove(action.item())
+        nState = agent.convertInput(snake.SendGame())
+        gameOver = snake.GameOver()
+        cScore = snake.GetScore()
         r = cScore - pScore - 0.05  # Penalty for living without getting any apples.
+        pScore = cScore
+        tRew += r
 
-        agent.addToMem((pState, action, nState, r))
+        if not gameOver:
+            agent.addToMem(
+                (
+                    pState,
+                    torch.tensor([action]).to(device).to(torch.long),
+                    nState,
+                    torch.tensor([r]).to(device),
+                )
+            )
+        else:
+            agent.addToMem(
+                (
+                    pState,
+                    torch.tensor([action]).to(device).to(torch.long),
+                    nState,
+                    torch.tensor([-1]).to(device),
+                )
+            )
 
         agent.optimizeModel()
 
         # Soft target update?
-        if t % 50 == 0 and agent.memLen > 5000:
+        if t % 50 == 0 and agent.memLen() > 5000:
             agent.updateTarget()
 
         if gameOver:
             scores.append(cScore)
             nActions.append(t)
+            totRew.append(tRew)
             break
 
-plt.plot(scores)
+        t += 1
+
+plt.plot(nActions, "r")
+plt.plot(totRew, "g")
+plt.plot(scores, "b")
+plt.legend(["Number of actions per episode", "Total cumulative score", "Episode score"])
+plt.xlabel("Episode")
+plt.show()
