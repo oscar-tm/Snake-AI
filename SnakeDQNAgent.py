@@ -11,12 +11,21 @@ transitionMem = namedtuple("transitionMem", ["pState", "action", "nState", "rewa
 
 class DQNAgent:
     def __init__(
-        self, memSize=10000, batchSize=128, gamma=0.95, lossF=nn.SmoothL1Loss(), lr=1e-4
+        self,
+        memSize=10000,
+        batchSize=128,
+        gamma=0.95,
+        epsilonStart=0.9,
+        epsilonEnd=0.05,
+        lossF=nn.SmoothL1Loss(),
+        lr=1e-4,
     ) -> None:
         self.memSize = memSize
         self.cache = deque(maxlen=memSize)
         self.batchSize = batchSize
         self.gamma = gamma
+        self.epsilonStart = epsilonStart
+        self.epsilonEnd = epsilonEnd
         self.lossF = lossF
         self.nActions = 0
 
@@ -62,7 +71,9 @@ class DQNAgent:
         Returns: A epsilon-greedy move.
         """
         self.nActions += 1
-        if random.random() > 0.05 + 0.85 * math.exp(-1 * self.nActions / 20000):
+        if random.random() > self.epsilonEnd + (
+            self.epsilonStart - self.epsilonEnd
+        ) * math.exp(-1 * self.nActions / 20000):
             with torch.no_grad():
                 return torch.argmax(self.forward(x))
 
