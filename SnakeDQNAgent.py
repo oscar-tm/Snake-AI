@@ -122,6 +122,18 @@ class DQNAgent:
         """
         self.targetNet.load_state_dict(self.onlineNet.state_dict())
 
+    def save(self, path):
+        """
+        Saves the model to a file
+        """
+        torch.save(self.onlineNet.state_dict(), path)
+
+    def load(self, path):
+        """
+        Loads the model from a file
+        """
+        self.onlineNet.load_state_dict(torch.load(path))
+
     def memLen(self):
         """
         Returns the current size of the memory
