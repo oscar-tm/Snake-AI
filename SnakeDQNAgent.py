@@ -11,11 +11,11 @@ transitionMem = namedtuple("transitionMem", ["pState", "action", "nState", "rewa
 
 class DQNAgent:
     def __init__(
-        self, memSize=10000, bathSize=64, gamma=0.9, lossF=nn.SmoothL1Loss(), lr=1e-4
+        self, memSize=10000, batchSize=128, gamma=0.95, lossF=nn.SmoothL1Loss(), lr=1e-4
     ) -> None:
         self.memSize = memSize
         self.cache = deque(maxlen=memSize)
-        self.batchSize = bathSize
+        self.batchSize = batchSize
         self.gamma = gamma
         self.lossF = lossF
         self.nActions = 0
@@ -24,9 +24,9 @@ class DQNAgent:
             nn.LazyConv2d(1, 3, device=device),
             nn.LeakyReLU(),
             nn.Flatten(1),
-            nn.LazyLinear(64, device=device),
+            nn.LazyLinear(512, device=device),
             nn.LeakyReLU(),
-            nn.LazyLinear(16, device=device),
+            nn.LazyLinear(128, device=device),
             nn.LeakyReLU(),
             nn.LazyLinear(4, device=device),
         ).to(device)
@@ -34,9 +34,9 @@ class DQNAgent:
             nn.LazyConv2d(1, 3, device=device),
             nn.LeakyReLU(),
             nn.Flatten(1),
-            nn.LazyLinear(64, device=device),
+            nn.LazyLinear(512, device=device),
             nn.LeakyReLU(),
-            nn.LazyLinear(16, device=device),
+            nn.LazyLinear(128, device=device),
             nn.LeakyReLU(),
             nn.LazyLinear(4, device=device),
         ).to(device)
@@ -62,7 +62,7 @@ class DQNAgent:
         Returns: A epsilon-greedy move.
         """
         self.nActions += 1
-        if random.random() > 0.05 + 0.9 * math.exp(-1 * self.nActions / 20000):
+        if random.random() > 0.05 + 0.85 * math.exp(-1 * self.nActions / 20000):
             with torch.no_grad():
                 return torch.argmax(self.forward(x))
 
@@ -82,10 +82,10 @@ class DQNAgent:
             for j in range(gameSize + 2):
                 tmp.append(x[i, j])
             gM.append(tmp)
-        return torch.div(
-            torch.stack([torch.Tensor(a) for a in zip(*gM)]).to(device), 7
-        ).reshape(
-            1, gameSize + 2, gameSize + 2
+        return (
+            torch.stack([torch.Tensor(a) for a in zip(*gM)])
+            .to(device)
+            .reshape(1, gameSize + 2, gameSize + 2)
         )  # Need to transpose the game matrix here for now, will be fixed later. Not a high priority
 
     def optimizeModel(self):
@@ -93,8 +93,8 @@ class DQNAgent:
         Optimizing the model using the data stored in the memory
         """
         if (
-            len(self.cache) < 64  # self.memSize * 0.5
-        ):  # Only start to optimize model when memory is halfway full
+            len(self.cache) < self.memSize * 0.1
+        ):  # Only start to optimize model when memory is 10% full
             return
 
         sample = transitionMem(*zip(*self.sampleMem()))
