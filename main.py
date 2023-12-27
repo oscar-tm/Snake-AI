@@ -19,29 +19,40 @@ snake = SnakeGame(13, 3)
 
 from SnakeDQNAgent import *
 
-agent = DQNAgent()
+# Hyperarameters
+memSize = 10000
+bathSize = 512
+gamma = 0.99
+lr = 1e-4
+lossF = nn.SmoothL1Loss()
 
-nEpisodes = 500
+agent = DQNAgent(memSize=memSize, batchSize=bathSize, gamma=gamma, lr=lr, lossF=lossF)
+
+nEpisodes = 5000
 scores = []
 nActions = []
 totRew = []
 tRew = 0
 
-t = 1
+# Still lacks something to learn completly
 for i in range(nEpisodes):
     print("Current episode:", i)
-    snake.ResetGame()  # need reset function (despair)
+    snake.ResetGame()
     pState = agent.convertInput(snake.SendGame())
-    pScore = snake.GetScore()
+    pScore = int(snake.GetScore())
+    t = 0
     while True:
         action = agent.move(pState)
         snake.DirectMove(action.item())
         nState = agent.convertInput(snake.SendGame())
         gameOver = snake.GameOver()
-        cScore = snake.GetScore()
-        r = cScore - pScore - 0.05  # Penalty for living without getting any apples.
+        cScore = int(snake.GetScore())
+        r = cScore - pScore
         pScore = cScore
         tRew += r
+
+        if t > 2000:  # Stop from running forever
+            gameOver = True
 
         if not gameOver:
             agent.addToMem(
@@ -63,9 +74,10 @@ for i in range(nEpisodes):
             )
 
         agent.optimizeModel()
+        pState = nState
 
         # Soft target update?
-        if t % 50 == 0 and agent.memLen() > 5000:
+        if agent.nActions % 50 == 0 and agent.memLen() > 256:
             agent.updateTarget()
 
         if gameOver:
@@ -76,9 +88,13 @@ for i in range(nEpisodes):
 
         t += 1
 
+print("Total nr of actions:", sum(nActions))
+print("Average nr of actions:", sum(nActions) / len(nActions))
 plt.plot(nActions, "r")
 plt.plot(totRew, "g")
 plt.plot(scores, "b")
-plt.legend(["Number of actions per episode", "Total cumulative score", "Episode score"])
+plt.legend(
+    ["Number of actions per episode", "Total cumulative reward", "Episode score"]
+)
 plt.xlabel("Episode")
 plt.show()
